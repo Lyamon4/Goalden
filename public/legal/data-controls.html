@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Goalden Data Controls</title>
+    <style>
+      :root { color:#11110f; background:#f7f6f3; font-family:"SF Pro Display","Helvetica Neue",Arial,sans-serif; --line:#eaeaea; --muted:#787774; --paper:#fff; --bone:#f7f6f3; --red:#9f2f2d; }
+      *{box-sizing:border-box;} body{margin:0;} a{color:inherit;} .page{min-height:100vh;padding:28px 20px 64px;} .wrap{width:min(1120px,100%);margin:0 auto;}
+      .nav{display:flex;align-items:center;justify-content:space-between;gap:18px;border-bottom:1px solid var(--line);padding-bottom:20px;} .brand{display:inline-flex;align-items:center;gap:12px;text-decoration:none;font-weight:800;} .brand img:first-child{width:32px;height:32px;object-fit:contain;} .brand img:last-child{height:22px;width:auto;object-fit:contain;}
+      .back{display:inline-flex;min-height:40px;align-items:center;justify-content:center;border:1px solid #11110f;border-radius:6px;background:#11110f;color:#fff;padding:0 14px;text-decoration:none;font-size:14px;font-weight:700;}
+      .hero{padding:72px 0 40px;} .eyebrow{margin:0;color:var(--red);font-family:"SF Mono",Consolas,monospace;font-size:12px;letter-spacing:.18em;text-transform:uppercase;} h1{max-width:900px;margin:14px 0 0;font-family:Georgia,"Times New Roman",serif;font-size:clamp(54px,9vw,120px);font-weight:500;letter-spacing:-.045em;line-height:.92;} .intro{max-width:720px;margin:28px 0 0;color:var(--muted);font-size:20px;line-height:1.65;}
+      .grid{display:grid;gap:16px;margin-top:28px;} .card{border:1px solid var(--line);border-radius:12px;background:var(--paper);padding:clamp(22px,4vw,38px);} .card h2{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:clamp(30px,4vw,48px);font-weight:500;letter-spacing:-.035em;line-height:1;} .card p{color:var(--muted);font-size:16px;line-height:1.75;} .card p:last-child{margin-bottom:0;} .steps{counter-reset:step;display:grid;gap:12px;margin-top:18px;} .step{counter-increment:step;border:1px solid var(--line);border-radius:10px;background:var(--bone);padding:16px;} .step:before{content:"0" counter(step);display:block;margin-bottom:8px;color:var(--red);font-family:"SF Mono",Consolas,monospace;font-size:12px;} .step strong{display:block;margin-bottom:6px;} .step span{color:var(--muted);line-height:1.6;}
+      @media (min-width:860px){.grid{grid-template-columns:repeat(2,1fr);} .wide{grid-column:1/-1;}}
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="wrap">
+        <nav class="nav">
+          <a class="brand" href="/"><img src="/goalden-symbol-black.png" alt="" /><img src="/goalden-name-black.png" alt="Goalden" /></a>
+          <a class="back" href="/">Back to landing</a>
+        </nav>
+        <section class="hero">
+          <p class="eyebrow">Data controls</p>
+          <h1>You should be able to see, edit, pause, and delete what Goalden knows.</h1>
+          <p class="intro">
+            The point of Goalden is accountability, not hidden surveillance. The product should keep
+            tasks, sources, and blocking rules understandable and removable.
+          </p>
+        </section>
+        <section class="grid">
+          <article class="card"><h2>Review extracted tasks</h2><p>Tasks found from chats should appear in a review queue before they become recurring blockers. You should be able to edit or dismiss a task when the AI gets it wrong.</p></article>
+          <article class="card"><h2>Pause a source</h2><p>You should be able to pause Slack, Notion, Telegram, WhatsApp, email, or docs without disabling the full extension.</p></article>
+          <article class="card"><h2>Delete local history</h2><p>Local settings, active timers, progress reports, and cached tasks should be removable from the browser.</p></article>
+          <article class="card"><h2>Change block rules</h2><p>You should be able to choose which sites Goalden blocks, how long breaks last, and which task appears in the blocking prompt.</p></article>
+          <article class="card wide">
+            <h2>Expected controls</h2>
+            <div class="steps">
+              <div class="step"><strong>See connected sources</strong><span>A simple list of every connected workspace, chat, or document source.</span></div>
+              <div class="step"><strong>Disconnect a source</strong><span>Stopping future reads should be available from the product UI.</span></div>
+              <div class="step"><strong>Clear browser data</strong><span>The extension should expose a clear path for resetting local Goalden state.</span></div>
+              <div class="step"><strong>Ask for manual help</strong><span>While Goalden is in beta, deletion or account requests can be handled through the Gmail contact in the footer.</span></div>
+            </div>
+          </article>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>
