@@ -21,6 +21,7 @@ const draftTask = ref<TaskDraft>({
 const enabledSet = computed(() => new Set(enabledSiteIds.value));
 const tasks = computed(() => state.value?.tasks ?? []);
 const auth = computed(() => state.value?.auth);
+const isSignedIn = computed(() => auth.value?.status === 'signed-in');
 
 async function loadState() {
   const nextState = await sendMessage<GoaldenViewState>({ type: 'get-state' });
@@ -104,6 +105,10 @@ async function signOutUser() {
   syncLocal(await sendMessage<GoaldenViewState>({ type: 'auth-sign-out' }));
 }
 
+async function openPanel() {
+  await sendMessage<GoaldenViewState>({ type: 'open-side-panel' });
+}
+
 function flashSaved() {
   savedLabel.value = 'Saved';
   window.setTimeout(() => {
@@ -145,14 +150,26 @@ onUnmounted(() => {
         <strong>Goalden</strong>
       </div>
       <p class="eyebrow">Extension settings</p>
-      <h1>Run the local loop before AI enters.</h1>
+      <h1>{{ isSignedIn ? 'Run the focus loop before AI enters.' : 'Create an account first.' }}</h1>
       <p>
-        Choose blocked feeds, set break length, and keep a small local task list. The extension can
-        already use this list for overlay prompts and progress checks.
+        {{
+          isSignedIn
+            ? 'Choose blocked feeds, set break length, and keep a small task list. Goalden uses this list for overlay prompts and progress checks.'
+            : 'Goalden needs sign in before settings unlock. Open the side panel and create an account to start the demo.'
+        }}
       </p>
     </header>
 
-    <section class="settings-grid">
+    <section v-if="!isSignedIn" class="locked-options card">
+      <p class="eyebrow">Account required</p>
+      <h2>Sign in from the Goalden panel.</h2>
+      <p class="muted">
+        After registration, these settings open: blocked feeds, break length, tasks, AI checks, and Supabase sync.
+      </p>
+      <button class="button primary" @click="openPanel">Open sign in</button>
+    </section>
+
+    <section v-else class="settings-grid">
       <div class="card settings-card account-settings">
         <div class="setting-head">
           <div>
@@ -249,7 +266,7 @@ onUnmounted(() => {
       </div>
     </section>
 
-    <footer class="options-footer">
+    <footer v-if="isSignedIn" class="options-footer">
       <button class="button primary" @click="saveSettings">Save settings</button>
       <span>{{ savedLabel }}</span>
     </footer>
@@ -300,6 +317,24 @@ onUnmounted(() => {
   grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
   gap: 18px;
   margin-top: 42px;
+}
+
+.locked-options {
+  max-width: 620px;
+  margin-top: 42px;
+  padding: 24px;
+}
+
+.locked-options h2 {
+  margin: 8px 0 10px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 36px;
+  font-weight: 500;
+  line-height: 1.05;
+}
+
+.locked-options .button {
+  margin-top: 18px;
 }
 
 .settings-card {

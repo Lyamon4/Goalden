@@ -11,6 +11,7 @@ const isSaving = ref(false);
 const enabledIds = computed(() => new Set(state.value?.enabledSiteIds ?? []));
 const latestProgress = computed(() => state.value?.progressLog?.[0]);
 const auth = computed(() => state.value?.auth);
+const isSignedIn = computed(() => auth.value?.status === 'signed-in');
 const activeTask = computed(() => {
   const current = state.value;
   if (!current) return null;
@@ -48,6 +49,10 @@ function openOptions() {
   chrome.runtime.openOptionsPage();
 }
 
+async function openPanel() {
+  await sendMessage<GoaldenViewState>({ type: 'open-side-panel' });
+}
+
 function handleStorageChange(changes: Record<string, chrome.storage.StorageChange>, areaName: string) {
   if (areaName === 'local' && (changes['goalden-state']?.newValue || changes['goalden-auth']?.newValue)) {
     loadState();
@@ -75,11 +80,21 @@ onUnmounted(() => {
         </span>
         <div>
           <strong>Goalden</strong>
-          <p>{{ isSaving ? 'Saving...' : 'Progress gate is active' }}</p>
+          <p>{{ isSignedIn ? (isSaving ? 'Saving...' : 'Progress gate is active') : 'Account required' }}</p>
         </div>
       </div>
     </header>
 
+    <section v-if="!isSignedIn" class="summary-card card auth-required-card">
+      <p class="eyebrow">Account required</p>
+      <h1>Create an account first.</h1>
+      <p class="muted">
+        Goalden needs sign in before it starts blocking feeds and saving progress.
+      </p>
+      <button class="button primary full-width" @click="openPanel">Open sign in</button>
+    </section>
+
+    <template v-else>
     <section class="summary-card card">
       <p class="eyebrow">Current rule</p>
       <h1>Write progress, earn {{ state?.breakMinutes ?? 15 }} minutes.</h1>
@@ -105,9 +120,10 @@ onUnmounted(() => {
       <p class="eyebrow">Last update</p>
       <p>{{ latestProgress.text }}</p>
     </section>
+    </template>
 
     <footer class="popup-footer">
-      <button class="button primary" @click="openOptions">Settings</button>
+      <button class="button primary" :disabled="!isSignedIn" @click="openOptions">Settings</button>
       <a class="button ghost" href="https://goalden.local/pricing" target="_blank">
         Pricing
       </a>
@@ -167,6 +183,11 @@ onUnmounted(() => {
   border-top: 1px solid var(--line);
   padding-top: 10px;
   font-size: 13px;
+}
+
+.auth-required-card .full-width {
+  width: 100%;
+  margin-top: 14px;
 }
 
 .site-list {

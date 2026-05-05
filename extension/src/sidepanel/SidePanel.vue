@@ -17,8 +17,12 @@ const isSaving = ref(false);
 const isSubmitting = ref(false);
 const isAuthBusy = ref(false);
 const isSyncing = ref(false);
+const isAiSaving = ref(false);
 const showNewTask = ref(false);
 const authMode = ref<'sign-in' | 'sign-up'>('sign-in');
+const aiModelDraft = ref('openai/gpt-oss-120b');
+const aiMessage = ref('');
+const aiError = ref('');
 
 const authForm = ref({
   name: '',
@@ -57,20 +61,22 @@ const wordCount = computed(() => progress.value.trim().split(/\s+/).filter(Boole
 const canSubmit = computed(() => Boolean(activeTask.value) && wordCount.value >= 5 && !isSubmitting.value);
 const latestProgress = computed(() => state.value?.progressLog?.[0]);
 const auth = computed(() => state.value?.auth);
+const aiSettings = computed(() => state.value?.aiSettings);
 const isSignedIn = computed(() => auth.value?.status === 'signed-in');
 const authTitle = computed(() =>
-  authMode.value === 'sign-in' ? 'Sign in to sync Goalden.' : 'Create your Goalden account.'
+  authMode.value === 'sign-in' ? 'Sign in to use Goalden.' : 'Create your Goalden account.'
 );
 const authCopy = computed(() =>
   authMode.value === 'sign-in'
-    ? 'Your tasks, settings, breaks, and progress log will be saved to Supabase.'
-    : 'Use an email and password for now. Google login can wait until the store listing is ready.'
+    ? 'Goalden needs an account before it starts gating feeds. Tasks, settings, breaks, and progress sync to Supabase.'
+    : 'Create an account first. After that, Goalden can block feeds, judge pages, and save your progress.'
 );
 
 function syncLocal(nextState: GoaldenViewState) {
   state.value = nextState;
   enabledSiteIds.value = [...nextState.enabledSiteIds];
   breakMinutes.value = nextState.breakMinutes;
+  aiModelDraft.value = nextState.aiSettings.model;
   syncActiveEditor();
 }
 
@@ -100,6 +106,63 @@ async function saveSettings() {
   );
   isSaving.value = false;
   flashSaved();
+}
+
+async function saveAiSettings(patch: NonNullable<GoaldenViewState['aiSettings']>) {
+  isAiSaving.value = true;
+  aiError.value = '';
+  try {
+    syncLocal(
+      await sendMessage<GoaldenViewState>({
+        type: 'save-ai-settings',
+        aiSettings: patch
+      })
+    );
+    aiMessage.value = 'AI settings saved.';
+    flashAiMessage();
+  } catch (error) {
+    aiError.value = error instanceof Error ? error.message : 'AI settings did not save.';
+  } finally {
+    isAiSaving.value = false;
+  }
+}
+
+async function saveAiToggle(enabled: boolean) {
+  if (!aiSettings.value) return;
+  await saveAiSettings({
+    ...aiSettings.value,
+    enabled
+  });
+}
+
+async function saveSitePickingToggle(sitePickingEnabled: boolean) {
+  if (!aiSettings.value) return;
+  await saveAiSettings({
+    ...aiSettings.value,
+    sitePickingEnabled
+  });
+}
+
+async function saveAiModel() {
+  if (!aiSettings.value) return;
+  await saveAiSettings({
+    ...aiSettings.value,
+    model: aiModelDraft.value
+  });
+}
+
+async function letAiPickSites() {
+  isAiSaving.value = true;
+  aiError.value = '';
+  try {
+    syncLocal(await sendMessage<GoaldenViewState>({ type: 'pick-sites-with-ai' }));
+    aiMessage.value = 'Goalden picked the feeds to block.';
+    flashAiMessage();
+  } catch (error) {
+    aiError.value = error instanceof Error ? error.message : 'Goalden could not pick sites.';
+  } finally {
+    isAiSaving.value = false;
+  }
 }
 
 async function toggleSite(siteId: SiteId) {
@@ -243,6 +306,12 @@ function flashSaved() {
   }, 1200);
 }
 
+function flashAiMessage() {
+  window.setTimeout(() => {
+    aiMessage.value = '';
+  }, 1800);
+}
+
 function statusLabel(status: TaskStatus) {
   if (status === 'done') return 'done';
   if (status === 'paused') return 'paused';
@@ -276,10 +345,10 @@ onUnmounted(() => {
         </span>
         <div>
           <strong>Goalden</strong>
-          <p>{{ isSaving ? 'Saving...' : 'Local focus loop' }}</p>
+          <p>{{ isSignedIn ? (isSaving ? 'Saving...' : 'Focus loop active') : 'Account required' }}</p>
         </div>
       </div>
-      <button class="text-button" @click="openOptions">Settings</button>
+      <button v-if="isSignedIn" class="text-button" @click="openOptions">Settings</button>
     </header>
 
     <section class="account-card" :data-state="auth?.status || 'signed-out'">
@@ -308,7 +377,7 @@ onUnmounted(() => {
       <template v-else>
         <div class="section-head">
           <p class="eyebrow">Account</p>
-          <span>{{ auth?.status === 'pending-confirmation' ? 'Check email' : 'Local only' }}</span>
+          <span>{{ auth?.status === 'pending-confirmation' ? 'Check email' : 'Required' }}</span>
         </div>
         <h2>{{ authTitle }}</h2>
         <p>{{ authCopy }}</p>
@@ -349,6 +418,59 @@ onUnmounted(() => {
 
       <p v-if="authMessage" class="auth-note">{{ authMessage }}</p>
       <p v-if="authError || auth?.syncError" class="auth-error">{{ authError || auth?.syncError }}</p>
+    </section>
+
+    <section v-if="!isSignedIn" class="locked-card">
+      <p class="eyebrow">Before the first block</p>
+      <h1>Make the account first.</h1>
+      <p>
+        The demo uses your account to keep tasks, AI settings, feed decisions, and progress tied to one user.
+        After sign in, the rest of the panel opens.
+      </p>
+    </section>
+
+    <template v-if="isSignedIn">
+    <section class="panel-section ai-card">
+      <div class="section-head">
+        <p class="eyebrow">AI coach</p>
+        <span>Groq ready</span>
+      </div>
+
+      <h2>Let Goalden judge the feed.</h2>
+      <p>
+        The model checks the page against your active task. If the page helps the task, it can stay open.
+        If it looks like scrolling, Goalden asks for progress first.
+      </p>
+
+      <button class="site-row compact" @click="saveAiToggle(!aiSettings?.enabled)">
+        <span>
+          <strong>AI page checks</strong>
+          <small>{{ aiSettings?.enabled ? 'The model reviews each gated page.' : 'Manual feed rules only.' }}</small>
+        </span>
+        <span class="toggle" :data-active="aiSettings?.enabled" />
+      </button>
+
+      <button class="site-row compact" @click="saveSitePickingToggle(!aiSettings?.sitePickingEnabled)">
+        <span>
+          <strong>AI site picking</strong>
+          <small>{{ aiSettings?.sitePickingEnabled ? 'Goalden can choose which feeds to block.' : 'You pick the feeds yourself.' }}</small>
+        </span>
+        <span class="toggle" :data-active="aiSettings?.sitePickingEnabled" />
+      </button>
+
+      <div class="ai-model-row">
+        <input v-model="aiModelDraft" class="field compact-field" type="text" spellcheck="false" />
+        <button class="mini-button" :disabled="isAiSaving" @click="saveAiModel">Save model</button>
+      </div>
+
+      <div class="account-actions">
+        <button class="button primary full-width" :disabled="isAiSaving" @click="letAiPickSites">
+          {{ isAiSaving ? 'Thinking...' : 'Let AI pick feeds' }}
+        </button>
+      </div>
+
+      <p v-if="aiMessage" class="auth-note">{{ aiMessage }}</p>
+      <p v-if="aiError" class="auth-error">{{ aiError }}</p>
     </section>
 
     <section class="task-card">
@@ -480,6 +602,7 @@ onUnmounted(() => {
       <p class="eyebrow">Last update</p>
       <p>{{ latestProgress.taskTitle ? `${latestProgress.taskTitle}: ` : '' }}{{ latestProgress.text }}</p>
     </section>
+    </template>
   </main>
 </template>
 
@@ -566,6 +689,30 @@ onUnmounted(() => {
   padding: 18px;
 }
 
+.locked-card {
+  margin-top: 14px;
+  border: 1px solid #eaeaea;
+  border-radius: 12px;
+  background: #fff;
+  padding: 18px;
+}
+
+.locked-card h1 {
+  margin: 10px 0 8px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 34px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.locked-card p:last-child {
+  margin: 0;
+  color: #787774;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .account-card h2 {
   margin: 10px 0 8px;
   color: #11110f;
@@ -581,6 +728,29 @@ onUnmounted(() => {
   color: #787774;
   font-size: 13px;
   line-height: 1.5;
+}
+
+.ai-card h2 {
+  margin: 10px 0 8px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 27px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.ai-card p {
+  margin: 0 0 8px;
+  color: #787774;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ai-model-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .account-meta {
@@ -778,6 +948,38 @@ input[type="range"] {
 
 .mini-button.danger {
   color: #9f2f2d;
+}
+
+.toggle {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex: 0 0 auto;
+  border: 1px solid #d8d2c8;
+  border-radius: 999px;
+  background: #f1eee8;
+}
+
+.toggle::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #9b958b;
+  content: "";
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.toggle[data-active="true"] {
+  border-color: #11110f;
+  background: #11110f;
+}
+
+.toggle[data-active="true"]::after {
+  background: #fff;
+  transform: translateX(16px);
 }
 
 .site-row {

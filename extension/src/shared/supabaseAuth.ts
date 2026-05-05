@@ -5,6 +5,7 @@ import type {
   GoaldenTask,
   GoaldenUser,
   GoaldenViewState,
+  AiSettings,
   ProgressLog,
   SiteId,
   TaskStatus
@@ -45,6 +46,7 @@ interface GoaldenSettingsRow {
   break_minutes: number;
   active_task_id: string | null;
   unlocks: Partial<Record<SiteId, number>>;
+  ai_settings?: AiSettings | null;
 }
 
 interface GoaldenTaskRow {
@@ -69,6 +71,15 @@ interface GoaldenProgressRow {
   created_at_bigint: number;
   unlock_until_bigint: number;
 }
+
+type SettingsBody = {
+  user_id: string;
+  enabled_site_ids: SiteId[];
+  break_minutes: number;
+  active_task_id: string;
+  unlocks: Partial<Record<SiteId, number>> & { __aiSettings?: AiSettings };
+  ai_settings?: AiSettings;
+};
 
 function nowSeconds() {
   return Math.floor(Date.now() / 1000);
@@ -295,11 +306,17 @@ async function loadRemoteState(auth: StoredAuth): Promise<GoaldenState | null> {
   const settings = settingsRows[0];
   if (!settings && !taskRows.length && !progressRows.length) return null;
 
+  const fallbackAiSettings =
+    settings?.unlocks && typeof settings.unlocks === 'object' && '__aiSettings' in settings.unlocks
+      ? (settings.unlocks.__aiSettings as AiSettings)
+      : undefined;
+
   return normalizeGoaldenState({
     enabledSiteIds: settings?.enabled_site_ids,
     breakMinutes: settings?.break_minutes,
     activeTaskId: settings?.active_task_id ?? undefined,
     unlocks: settings?.unlocks,
+    aiSettings: settings?.ai_settings ?? fallbackAiSettings,
     tasks: taskRows.map(rowToTask),
     progressLog: progressRows.map(rowToProgress)
   });
@@ -324,21 +341,7 @@ async function saveRemoteState(state: GoaldenState, auth: StoredAuth): Promise<S
     auth.accessToken
   );
 
-  await supabaseRestRequest(
-    'goalden_settings?on_conflict=user_id',
-    {
-      method: 'POST',
-      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify({
-        user_id: userId,
-        enabled_site_ids: state.enabledSiteIds,
-        break_minutes: state.breakMinutes,
-        active_task_id: state.activeTaskId,
-        unlocks: state.unlocks
-      })
-    },
-    auth.accessToken
-  );
+  await upsertRemoteSettings(state, userId, auth.accessToken);
 
   const encodedUserId = encodeURIComponent(userId);
   await Promise.all([
@@ -385,6 +388,51 @@ async function saveRemoteState(state: GoaldenState, auth: StoredAuth): Promise<S
   };
   await saveAuth(nextAuth);
   return nextAuth;
+}
+
+async function upsertRemoteSettings(state: GoaldenState, userId: string, accessToken: string) {
+  const body: SettingsBody = {
+    user_id: userId,
+    enabled_site_ids: state.enabledSiteIds,
+    break_minutes: state.breakMinutes,
+    active_task_id: state.activeTaskId,
+    unlocks: state.unlocks,
+    ai_settings: state.aiSettings
+  };
+
+  try {
+    await supabaseRestRequest(
+      'goalden_settings?on_conflict=user_id',
+      {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(body)
+      },
+      accessToken
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '';
+    if (!message.includes('ai_settings')) throw error;
+
+    const fallbackBody = {
+      ...body,
+      unlocks: {
+        ...state.unlocks,
+        __aiSettings: state.aiSettings
+      }
+    };
+    delete fallbackBody.ai_settings;
+
+    await supabaseRestRequest(
+      'goalden_settings?on_conflict=user_id',
+      {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(fallbackBody)
+      },
+      accessToken
+    );
+  }
 }
 
 async function mergeLocalWithRemote(auth: StoredAuth): Promise<GoaldenState> {

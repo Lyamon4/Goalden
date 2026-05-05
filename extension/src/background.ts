@@ -1,6 +1,24 @@
-import { addTask, createUnlock, deleteTask, getState, saveState, setActiveTask, updateState, updateTask } from './shared/state';
-import { getAllRuleIds, SITES } from './shared/sites';
-import { getViewState, signInWithEmail, signOut, signUpWithEmail, syncStateToSupabase } from './shared/supabaseAuth';
+import {
+  addTask,
+  createUnlock,
+  deleteTask,
+  getState,
+  saveState,
+  setActiveTask,
+  updateAiSettings,
+  updateState,
+  updateTask
+} from './shared/state';
+import {
+  clearGroqApiKey,
+  evaluatePageWithAi,
+  getAiKeyStatus,
+  pickSitesWithAi,
+  reviewProgressWithAi,
+  saveGroqApiKey
+} from './shared/aiCoach';
+import { findSiteByUrl, getAllRuleIds, SITES } from './shared/sites';
+import { getAuthView, getViewState, signInWithEmail, signOut, signUpWithEmail, syncStateToSupabase } from './shared/supabaseAuth';
 import type { ExtensionMessage, GoaldenState } from './shared/types';
 
 const UNLOCK_ALARM = 'goalden-unlock-expired';
@@ -73,6 +91,7 @@ async function handleMessage(message: ExtensionMessage) {
   }
 
   if (message.type === 'save-settings') {
+    await requireSignedIn();
     const current = await getState();
     const state = await saveState({
       ...current,
@@ -83,32 +102,92 @@ async function handleMessage(message: ExtensionMessage) {
     return syncStateToSupabase(state);
   }
 
+  if (message.type === 'save-ai-settings') {
+    await requireSignedIn();
+    const state = await updateState(current => updateAiSettings(current, message.aiSettings));
+    await syncRules();
+    return syncStateToSupabase(state);
+  }
+
+  if (message.type === 'save-groq-api-key') {
+    await requireSignedIn();
+    return saveGroqApiKey(message.apiKey);
+  }
+
+  if (message.type === 'clear-groq-api-key') {
+    await requireSignedIn();
+    return clearGroqApiKey();
+  }
+
+  if (message.type === 'get-ai-key-status') {
+    return getAiKeyStatus();
+  }
+
+  if (message.type === 'evaluate-page') {
+    const state = await getState();
+    const site = findSiteByUrl(message.url);
+    if (!site) {
+      return {
+        shouldBlock: false,
+        confidence: 0,
+        reason: 'Goalden only reviews the feeds it can gate right now.',
+        coachMessage: 'This page is outside the current Goalden gate.',
+        question: 'What changed on your task?',
+        source: 'fallback',
+        evaluatedAt: Date.now()
+      };
+    }
+    return evaluatePageWithAi(state, site, message.url, message.title);
+  }
+
+  if (message.type === 'pick-sites-with-ai') {
+    await requireSignedIn();
+    const current = await getState();
+    const enabledSiteIds = await pickSitesWithAi(current);
+    const state = await saveState({
+      ...current,
+      enabledSiteIds
+    });
+    await syncRules();
+    return syncStateToSupabase(state);
+  }
+
   if (message.type === 'create-task') {
+    await requireSignedIn();
     const state = await updateState(current => addTask(current, message.task, message.activate ?? true));
     await syncRules();
     return syncStateToSupabase(state);
   }
 
   if (message.type === 'update-task') {
+    await requireSignedIn();
     const state = await updateState(current => updateTask(current, message.taskId, message.patch));
     await syncRules();
     return syncStateToSupabase(state);
   }
 
   if (message.type === 'delete-task') {
+    await requireSignedIn();
     const state = await updateState(current => deleteTask(current, message.taskId));
     await syncRules();
     return syncStateToSupabase(state);
   }
 
   if (message.type === 'set-active-task') {
+    await requireSignedIn();
     const state = await updateState(current => setActiveTask(current, message.taskId));
     await syncRules();
     return syncStateToSupabase(state);
   }
 
   if (message.type === 'approve-progress') {
-    const state = await updateState(current => createUnlock(current, message.siteId, message.progress, message.taskId));
+    await requireSignedIn();
+    const current = await getState();
+    const review = await reviewProgressWithAi(current, message.siteId, message.progress, current.progressLog);
+    if (!review.approved) {
+      throw new Error(review.coachMessage);
+    }
+    const state = await saveState(createUnlock(current, message.siteId, message.progress, message.taskId));
     await syncRules();
     return syncStateToSupabase(state);
   }
@@ -130,6 +209,7 @@ async function handleMessage(message: ExtensionMessage) {
   }
 
   if (message.type === 'sync-remote') {
+    await requireSignedIn();
     const state = await syncStateToSupabase();
     await syncRules();
     return state;
@@ -141,6 +221,13 @@ async function handleMessage(message: ExtensionMessage) {
   }
 
   return getViewState();
+}
+
+async function requireSignedIn() {
+  const auth = await getAuthView();
+  if (auth.status !== 'signed-in') {
+    throw new Error('Create an account before using Goalden.');
+  }
 }
 
 chrome.runtime.onInstalled.addListener(() => {

@@ -17,6 +17,7 @@
   "permissions": ["alarms", "declarativeNetRequest", "scripting", "sidePanel", "storage", "tabs"],
   "host_permissions": [
     "https://rlhaibdgdgczlgpgdnag.supabase.co/*",
+    "https://api.groq.com/*",
     "*://reddit.com/*",
     "*://*.reddit.com/*",
     "*://youtube.com/*",

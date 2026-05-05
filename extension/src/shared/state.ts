@@ -1,10 +1,11 @@
 import { DEFAULT_ENABLED_SITE_IDS } from './sites';
-import type { GoaldenState, GoaldenTask, ProgressLog, SiteId, TaskDraft, TaskStatus } from './types';
+import type { AiSettings, GoaldenState, GoaldenTask, ProgressLog, SiteId, TaskDraft, TaskStatus } from './types';
 
 const STORAGE_KEY = 'goalden-state';
 const MAX_LOG_ITEMS = 12;
 const DEFAULT_TASK_ID = 'task-investor-update';
 const FALLBACK_OPEN_TASK_ID = 'task-next-focus';
+export const DEFAULT_AI_MODEL = 'openai/gpt-oss-120b';
 
 type LegacyStoredState = Partial<GoaldenState> & { focusTask?: string };
 
@@ -32,7 +33,12 @@ export const DEFAULT_STATE: GoaldenState = {
   activeTaskId: DEFAULT_TASK_ID,
   tasks: [DEFAULT_TASK],
   unlocks: {},
-  progressLog: []
+  progressLog: [],
+  aiSettings: {
+    enabled: true,
+    model: DEFAULT_AI_MODEL,
+    sitePickingEnabled: true
+  }
 };
 
 function createTaskId() {
@@ -73,6 +79,30 @@ function normalizeStatus(value: unknown): TaskStatus {
   return value === 'done' || value === 'paused' || value === 'open' ? value : 'open';
 }
 
+function normalizeAiSettings(value: unknown): AiSettings {
+  const settings = value && typeof value === 'object' ? (value as Partial<AiSettings>) : {};
+  return {
+    enabled: typeof settings.enabled === 'boolean' ? settings.enabled : DEFAULT_STATE.aiSettings.enabled,
+    model: settings.model?.trim() || DEFAULT_AI_MODEL,
+    sitePickingEnabled:
+      typeof settings.sitePickingEnabled === 'boolean'
+        ? settings.sitePickingEnabled
+        : DEFAULT_STATE.aiSettings.sitePickingEnabled
+  };
+}
+
+function normalizeUnlocks(value: unknown): Partial<Record<SiteId, number>> {
+  const source = value && typeof value === 'object' ? (value as Partial<Record<SiteId, unknown>>) : {};
+  const next: Partial<Record<SiteId, number>> = {};
+  for (const siteId of DEFAULT_ENABLED_SITE_IDS) {
+    const unlockUntil = source[siteId];
+    if (typeof unlockUntil === 'number' && Number.isFinite(unlockUntil)) {
+      next[siteId] = unlockUntil;
+    }
+  }
+  return next;
+}
+
 function normalizeTask(value: unknown, index: number): GoaldenTask | null {
   if (!value || typeof value !== 'object') return null;
   const task = value as Partial<GoaldenTask>;
@@ -109,8 +139,9 @@ function cleanState(value: LegacyStoredState | undefined): GoaldenState {
     breakMinutes: Number.isFinite(value?.breakMinutes) ? Math.max(1, Math.min(60, value!.breakMinutes!)) : 15,
     activeTaskId: activeTask.id,
     tasks: safeTasks,
-    unlocks: value?.unlocks ?? {},
-    progressLog: Array.isArray(value?.progressLog) ? value.progressLog.slice(0, MAX_LOG_ITEMS) : []
+    unlocks: normalizeUnlocks(value?.unlocks),
+    progressLog: Array.isArray(value?.progressLog) ? value.progressLog.slice(0, MAX_LOG_ITEMS) : [],
+    aiSettings: normalizeAiSettings(value?.aiSettings)
   };
 }
 
@@ -224,6 +255,16 @@ export function setActiveTask(state: GoaldenState, taskId: string): GoaldenState
   };
 }
 
+export function updateAiSettings(state: GoaldenState, patch: Partial<AiSettings>): GoaldenState {
+  return {
+    ...state,
+    aiSettings: normalizeAiSettings({
+      ...state.aiSettings,
+      ...patch
+    })
+  };
+}
+
 export function createUnlock(state: GoaldenState, siteId: SiteId, progress: string, taskId?: string, now = Date.now()): GoaldenState {
   const breakMs = state.breakMinutes * 60 * 1000;
   const unlockUntil = now + breakMs;
@@ -291,6 +332,10 @@ export function mergeGoaldenStates(localValue: unknown, remoteValue: unknown): G
       ...remote.unlocks,
       ...local.unlocks
     },
-    progressLog: [...progressMap.values()].sort((a, b) => b.createdAt - a.createdAt).slice(0, MAX_LOG_ITEMS)
+    progressLog: [...progressMap.values()].sort((a, b) => b.createdAt - a.createdAt).slice(0, MAX_LOG_ITEMS),
+    aiSettings: normalizeAiSettings({
+      ...remote.aiSettings,
+      ...local.aiSettings
+    })
   });
 }

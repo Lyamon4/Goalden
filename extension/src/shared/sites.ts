@@ -42,6 +42,15 @@ export function getSiteHomeUrl(siteId: SiteId) {
   return `https://${site.host}/`;
 }
 
+export function findSiteByUrl(url: string) {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return SITES.find(site => host === site.host || host.endsWith(`.${site.host}`) || site.domains.includes(host));
+  } catch {
+    return undefined;
+  }
+}
+
 export function getAllRuleIds() {
   return SITES.flatMap(site => site.domains.map((_, index) => site.ruleBaseId + index));
 }

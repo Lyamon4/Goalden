@@ -1,6 +1,7 @@
 export type SiteId = 'reddit' | 'youtube' | 'tiktok' | 'instagram';
 export type TaskStatus = 'open' | 'done' | 'paused';
 export type AuthStatus = 'signed-out' | 'signed-in' | 'pending-confirmation';
+export type AiDecisionSource = 'ai' | 'fallback';
 
 export interface TaskDraft {
   title: string;
@@ -12,6 +13,12 @@ export interface TaskDraft {
 export type ExtensionMessage =
   | { type: 'get-state' }
   | { type: 'save-settings'; enabledSiteIds: SiteId[]; breakMinutes: number }
+  | { type: 'save-ai-settings'; aiSettings: Partial<AiSettings> }
+  | { type: 'save-groq-api-key'; apiKey: string }
+  | { type: 'clear-groq-api-key' }
+  | { type: 'get-ai-key-status' }
+  | { type: 'evaluate-page'; url: string; title?: string }
+  | { type: 'pick-sites-with-ai' }
   | { type: 'create-task'; task: TaskDraft; activate?: boolean }
   | { type: 'update-task'; taskId: string; patch: Partial<TaskDraft & { status: TaskStatus }> }
   | { type: 'delete-task'; taskId: string }
@@ -52,6 +59,27 @@ export interface GoaldenTask {
   updatedAt: number;
 }
 
+export interface AiSettings {
+  enabled: boolean;
+  model: string;
+  sitePickingEnabled: boolean;
+}
+
+export interface AiDecision {
+  shouldBlock: boolean;
+  confidence: number;
+  reason: string;
+  coachMessage: string;
+  question: string;
+  source: AiDecisionSource;
+  evaluatedAt: number;
+}
+
+export interface AiKeyStatus {
+  hasKey: boolean;
+  updatedAt?: number;
+}
+
 export interface GoaldenState {
   enabledSiteIds: SiteId[];
   breakMinutes: number;
@@ -59,6 +87,7 @@ export interface GoaldenState {
   tasks: GoaldenTask[];
   unlocks: Partial<Record<SiteId, number>>;
   progressLog: ProgressLog[];
+  aiSettings: AiSettings;
 }
 
 export interface GoaldenUser {

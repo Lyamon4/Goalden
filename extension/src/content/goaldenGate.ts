@@ -1,5 +1,6 @@
 type SiteId = 'reddit' | 'youtube' | 'tiktok' | 'instagram';
 type TaskStatus = 'open' | 'done' | 'paused';
+type AuthStatus = 'signed-out' | 'signed-in' | 'pending-confirmation';
 
 interface GoaldenTask {
   id: string;
@@ -16,6 +17,20 @@ interface GoaldenState {
   activeTaskId: string;
   tasks: GoaldenTask[];
   unlocks: Partial<Record<SiteId, number>>;
+  auth?: {
+    status: AuthStatus;
+    user: { email: string } | null;
+  };
+}
+
+interface AiDecision {
+  shouldBlock: boolean;
+  confidence: number;
+  reason: string;
+  coachMessage: string;
+  question: string;
+  source: 'ai' | 'fallback';
+  evaluatedAt: number;
 }
 
 interface BlockedSite {
@@ -94,10 +109,10 @@ function getActiveTask(state: GoaldenState) {
   );
 }
 
-function getGateKey(site: BlockedSite, state: GoaldenState) {
+function getGateKey(site: BlockedSite, state: GoaldenState, decision: AiDecision) {
   const task = getActiveTask(state);
   const unlockUntil = state.unlocks[site.id] ?? 0;
-  return `${site.id}:${task.id}:${state.breakMinutes}:${unlockUntil}`;
+  return `${site.id}:${task.id}:${state.breakMinutes}:${unlockUntil}:${decision.source}:${decision.evaluatedAt}`;
 }
 
 function scheduleRecheck(state: GoaldenState, siteId: SiteId) {
@@ -408,9 +423,22 @@ function createStyle() {
   `;
 }
 
-function showGate(site: BlockedSite, state: GoaldenState) {
+function fallbackDecision(site: BlockedSite, state: GoaldenState): AiDecision {
   const task = getActiveTask(state);
-  const gateKey = getGateKey(site, state);
+  return {
+    shouldBlock: true,
+    confidence: 0.5,
+    reason: `${site.label} is on your blocked feed list.`,
+    coachMessage: `You said you'd work on ${task.title}. Do one small piece first.`,
+    question: `What changed on ${task.title}?`,
+    source: 'fallback',
+    evaluatedAt: Date.now()
+  };
+}
+
+function showGate(site: BlockedSite, state: GoaldenState, aiDecision = fallbackDecision(site, state)) {
+  const task = getActiveTask(state);
+  const gateKey = getGateKey(site, state, aiDecision);
   const existing = document.getElementById(ROOT_ID);
   if (existing?.dataset.goaldenKey === gateKey) return;
   const wasShowing = Boolean(existing);
@@ -472,12 +500,12 @@ function showGate(site: BlockedSite, state: GoaldenState) {
         </div>
         <div class="body">
           <span class="pill">${escapeHtml(site.label)} is paused</span>
-          <h2>What changed?</h2>
+          <h2>${escapeHtml(aiDecision.question || 'What changed?')}</h2>
           <div class="quote">
-            <span>Next step</span>
-            ${escapeHtml(nextStep)}
+            <span>${aiDecision.source === 'ai' ? 'AI read on this page' : 'Next step'}</span>
+            ${escapeHtml(aiDecision.coachMessage || nextStep)}
           </div>
-          <p class="card-copy">Be specific: what did you write, send, decide, or get stuck on? "I worked on it" is too vague.</p>
+          <p class="card-copy">${escapeHtml(aiDecision.reason)} Be specific: what did you write, send, decide, or get stuck on?</p>
           <label for="goalden-progress">Progress update</label>
           <textarea id="goalden-progress" placeholder="I wrote the churn section, sent the draft, and listed the numbers I still need."></textarea>
           <div class="actions">
@@ -524,12 +552,82 @@ function showGate(site: BlockedSite, state: GoaldenState) {
       submit.textContent = 'Submit progress';
       if (error) {
         error.hidden = false;
-        error.textContent = reason instanceof Error ? reason.message : "Couldn't start the break.";
+        error.textContent = reason instanceof Error ? reason.message : "Goalden needs a clearer progress update.";
       }
     }
   });
 
   panel?.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ type: 'open-side-panel' });
+  });
+}
+
+function showRegistrationGate(site: BlockedSite, state: GoaldenState) {
+  const gateKey = `auth:${site.id}:${state.auth?.status ?? 'signed-out'}`;
+  const existing = document.getElementById(ROOT_ID);
+  if (existing?.dataset.goaldenKey === gateKey) return;
+  const wasShowing = Boolean(existing);
+  existing?.remove();
+
+  if (!wasShowing) {
+    restoreOverflow = document.documentElement.style.overflow;
+  }
+  document.documentElement.style.overflow = 'hidden';
+
+  const host = document.createElement('goalden-gate');
+  host.id = ROOT_ID;
+  host.dataset.goaldenKey = gateKey;
+
+  const shadow = host.attachShadow({ mode: 'open' });
+  const status = state.auth?.status ?? 'signed-out';
+  const title = status === 'pending-confirmation' ? 'Confirm your email first.' : 'Create an account first.';
+  const copy =
+    status === 'pending-confirmation'
+      ? 'Goalden is waiting for email confirmation before it starts gating feeds.'
+      : 'Goalden needs an account before it can save tasks, progress, breaks, and AI decisions.';
+
+  shadow.innerHTML = `
+    <style>${createStyle()}</style>
+    <main class="shell" role="dialog" aria-modal="true" aria-label="Goalden account gate">
+      <section>
+        <div class="brand">
+          <span class="mark" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none">
+              <path d="M31.8 2 36 25l21.8-9.5L40.4 31.8 62 36 39 40.1l9.5 21.7L32.2 44.5 28 62 24 39.2 2 48.7l17.3-16.5L2 28l22.7-4.1L15.3 2.2 31.8 19V2Z" fill="currentColor" />
+            </svg>
+          </span>
+          <span>Goalden</span>
+        </div>
+        <p class="eyebrow">Account required</p>
+        <h1>${escapeHtml(title)}</h1>
+        <p class="lede">${escapeHtml(copy)}</p>
+      </section>
+
+      <section class="card">
+        <div class="bar">
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <p>${escapeHtml(site.host)} held by Goalden</p>
+        </div>
+        <div class="body">
+          <span class="pill">${escapeHtml(site.label)} is paused</span>
+          <h2>Sign in, then come back.</h2>
+          <div class="quote">
+            <span>First step</span>
+            Open the Goalden panel and create an account with email and password.
+          </div>
+          <p class="card-copy">After sign in, Goalden will unlock the full focus loop: tasks, AI page checks, progress review, and timed breaks.</p>
+          <div class="actions">
+            <button id="goalden-panel">Open Goalden panel</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  `;
+
+  (document.documentElement || document.body).appendChild(host);
+  shadow.getElementById('goalden-panel')?.addEventListener('click', () => {
     chrome.runtime.sendMessage({ type: 'open-side-panel' });
   });
 }
@@ -560,8 +658,19 @@ async function evaluateGate() {
 
   try {
     const state = await sendMessage<GoaldenState>({ type: 'get-state' });
-    if (isBlocked(state, site.id)) {
-      showGate(site, state);
+    if (state.auth?.status !== 'signed-in') {
+      showRegistrationGate(site, state);
+      return;
+    }
+
+    const decision = await sendMessage<AiDecision>({
+      type: 'evaluate-page',
+      url: window.location.href,
+      title: document.title
+    });
+
+    if (isBlocked(state, site.id) && decision.shouldBlock) {
+      showGate(site, state, decision);
     } else {
       removeGate();
     }
