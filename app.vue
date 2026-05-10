@@ -45,8 +45,6 @@ const steps = [
   'You report progress to the AI coach and earn a limited unlock.'
 ]
 
-const flipWords = ['tasks', 'deadlines', 'proof', 'earned breaks']
-
 const schoolLogos = [
   { src: '/logos/rfmsh.png', alt: 'RFMSH', title: 'RFMSH' },
   { src: '/logos/nish.png', alt: 'NISH', title: 'NISH' },
@@ -153,17 +151,17 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen overflow-hidden bg-bone text-ink">
+  <div class="min-h-screen overflow-hidden bg-bone font-sans text-ink">
     <header
-      class="fixed left-0 right-0 top-0 z-30 border-b border-line/80 bg-paper/90 backdrop-blur"
+      class="fixed left-0 right-0 top-0 z-30 border-b border-[#deded8] bg-[#f7f7f4]"
     >
-      <nav class="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 lg:px-8">
-        <a href="#top" class="flex items-center gap-3" aria-label="Goalden home">
-          <img src="/goalden-symbol-black.png" alt="" class="h-8 w-8 object-contain" />
-          <img src="/goalden-name-black.png" alt="Goalden" class="h-6 w-auto object-contain" />
+      <nav class="mx-auto flex h-16 max-w-[1300px] items-center justify-between px-5 lg:px-8">
+        <a href="#top" class="flex items-center gap-2.5" aria-label="Goalden home">
+          <img src="/goalden-symbol-black.png" alt="" class="h-7 w-7 object-contain" />
+          <img src="/goalden-name-black.png" alt="Goalden" class="h-5 w-auto object-contain" />
         </a>
 
-        <div class="hidden items-center gap-8 text-sm text-muted md:flex">
+        <div class="hidden items-center gap-8 text-sm text-ink md:flex">
           <a href="#how" class="transition hover:text-ink">How it works</a>
           <a href="#flow" class="transition hover:text-ink">Flow</a>
           <a href="#inside" class="transition hover:text-ink">Inside</a>
@@ -174,7 +172,7 @@ onMounted(() => {
 
         <a
           href="#waitlist"
-          class="hidden rounded-md bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-[#333333] active:scale-[0.98] sm:inline-flex"
+          class="hidden rounded-full bg-[#26251e] px-5 py-2 text-sm font-medium text-[#e6e5e0] transition hover:bg-[#34332b] active:scale-[0.98] sm:inline-flex"
         >
           Join waitlist
         </a>
@@ -182,60 +180,41 @@ onMounted(() => {
     </header>
 
     <main id="top">
-      <section class="relative mx-auto grid min-h-[100dvh] min-w-0 max-w-7xl items-center gap-12 px-5 pb-20 pt-32 lg:grid-cols-[0.92fr_0.86fr] lg:px-8 xl:grid-cols-[0.95fr_0.88fr]">
-        <div class="reveal min-w-0 max-w-4xl lg:max-w-[42rem]">
-          <p
-            class="mb-6 inline-flex rounded-full bg-gold-soft px-3 py-1 font-mono text-xs uppercase tracking-[0.18em] text-gold"
-          >
-            AI accountability before the feed
-          </p>
-          <h1 class="max-w-full font-serif text-[3.2rem] leading-[0.92] tracking-[-0.05em] sm:text-[clamp(4rem,6.2vw,5.9rem)] sm:leading-[0.9] sm:tracking-[-0.055em]">
+      <section class="relative mx-auto min-h-[100dvh] max-w-[1300px] px-5 pb-24 pt-32 lg:px-8">
+        <div class="reveal min-w-0 max-w-[620px]">
+          <h1 class="max-w-full text-[2rem] font-normal leading-[1.12] tracking-[-0.045em] sm:text-[2.25rem]">
             Earn your scroll.
           </h1>
-          <p class="mt-8 max-w-2xl text-lg leading-8 text-muted">
-            Goalden turns messy chats into
-            <FlipWords
-              :words="flipWords"
-              :duration="2400"
-              class="font-semibold text-ink"
-            />
-            before it lets the feed open.
+          <p class="mt-1 max-w-2xl text-[1.55rem] leading-[1.18] tracking-[-0.045em] text-[#26251e] sm:text-[2rem]">
+            Goalden turns messy chats into tasks before it lets the feed open.
           </p>
 
-          <div class="mt-10 flex flex-col gap-3 sm:flex-row">
+          <div class="mt-7 flex flex-col gap-3 sm:flex-row">
             <a
               href="#waitlist"
-              class="inline-flex items-center justify-center gap-2 rounded-md bg-ink px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#333333] active:scale-[0.98]"
+              class="inline-flex items-center justify-center gap-2 rounded-full bg-[#26251e] px-6 py-3 text-sm font-semibold text-[#e6e5e0] transition hover:bg-[#34332b] active:scale-[0.98]"
             >
               <PhGoogleChromeLogo :size="18" weight="fill" />
               Get Extension
             </a>
             <a
               href="#pricing"
-              class="inline-flex items-center justify-center rounded-md border border-line bg-white px-5 py-3 text-sm font-semibold text-ink transition hover:shadow-flat active:scale-[0.98]"
+              class="inline-flex items-center justify-center rounded-full border border-[#d8d7d1] bg-[#f0efeb] px-6 py-3 text-sm font-semibold text-[#26251e] transition hover:bg-[#e6e5e0] active:scale-[0.98]"
             >
               See pricing
             </a>
           </div>
-
-          <div class="mt-10 grid max-w-xl grid-cols-3 border-y border-line text-sm">
-            <div class="py-4 pr-4">
-              <p class="font-mono text-xl tracking-[-0.04em]">15m</p>
-              <p class="mt-1 text-muted">earned breaks</p>
-            </div>
-            <div class="border-x border-line px-4 py-4">
-              <p class="font-mono text-xl tracking-[-0.04em]">30m</p>
-              <p class="mt-1 text-muted">task slices</p>
-            </div>
-            <div class="py-4 pl-4">
-              <p class="font-mono text-xl tracking-[-0.04em]">0</p>
-              <p class="mt-1 text-muted">manual task dumps</p>
-            </div>
-          </div>
         </div>
 
-        <div class="reveal min-w-0 lg:pt-20" style="--delay: 120ms">
-          <div class="overflow-hidden rounded-xl border border-line bg-white shadow-flat">
+        <div class="reveal mt-16 min-w-0" style="--delay: 120ms">
+          <div class="relative overflow-hidden rounded-[4px] border border-[#d6d1c6] bg-[#d9d2c4] p-6 shadow-[0_28px_90px_rgba(34,31,24,0.16)] sm:p-10 lg:p-12">
+            <img
+              src="/cursor-landscape.jpg"
+              alt=""
+              class="absolute inset-0 h-full w-full object-cover opacity-80"
+            />
+            <div class="absolute inset-0 bg-[#f7f7f4]/15" />
+            <div class="relative mx-auto max-w-[1080px] overflow-hidden rounded-[10px] border border-[#d3d2cc] bg-[#f7f7f4]/95 shadow-[0_22px_70px_rgba(35,32,24,0.18)] backdrop-blur-sm">
             <div class="flex h-11 items-center justify-between border-b border-line px-4">
               <div class="flex gap-2">
                 <span class="h-2.5 w-2.5 rounded-full bg-[#ddd8ce]" />
@@ -246,7 +225,7 @@ onMounted(() => {
             </div>
 
             <div class="p-5 sm:p-7">
-              <div class="rounded-lg border border-line bg-paper p-5">
+              <div class="rounded-lg border border-line bg-[#f0efeb] p-5 text-[#26251e]">
                 <div class="flex items-start justify-between gap-4">
                   <div>
                     <p class="font-mono text-xs uppercase tracking-[0.18em] text-red-ink">
@@ -256,12 +235,12 @@ onMounted(() => {
                       You said the investor update would go out today.
                     </h2>
                   </div>
-                  <div class="rounded-md bg-red-soft p-3 text-red-ink">
+                  <div class="rounded-md bg-[#26251e] p-3 text-[#e6e5e0]">
                     <PhLockSimple :size="24" weight="bold" />
                   </div>
                 </div>
 
-                <div class="mt-6 rounded-lg border border-line bg-white p-4">
+                <div class="mt-6 rounded-lg border border-line bg-[#f7f7f4] p-4">
                   <p class="text-sm text-muted">Goalden found this in Slack yesterday:</p>
                   <p class="mt-2 text-[15px] leading-6">
                     “I’ll send the May metrics and churn notes before tomorrow’s call.”
@@ -273,7 +252,7 @@ onMounted(() => {
                 </label>
                 <div
                   id="progress"
-                  class="mt-2 min-h-24 rounded-lg border border-line bg-white p-4 text-sm leading-6 text-muted"
+                  class="mt-2 min-h-24 rounded-lg border border-line bg-[#f7f7f4] p-4 text-sm leading-6 text-muted"
                 >
                   Wrote the churn section, added April numbers, and asked Masha for the missing
                   expansion figure.
@@ -281,13 +260,13 @@ onMounted(() => {
 
                 <div class="mt-5 flex flex-col gap-3 sm:flex-row">
                   <button
-                    class="inline-flex items-center justify-center gap-2 rounded-md bg-ink px-4 py-3 text-sm font-semibold text-white transition active:scale-[0.98]"
+                    class="inline-flex items-center justify-center gap-2 rounded-full bg-[#26251e] px-4 py-3 text-sm font-semibold text-[#e6e5e0] transition active:scale-[0.98]"
                   >
                     Submit progress
                     <PhCheck :size="16" weight="bold" />
                   </button>
                   <button
-                    class="inline-flex items-center justify-center gap-2 rounded-md border border-line bg-white px-4 py-3 text-sm font-semibold transition active:scale-[0.98]"
+                    class="inline-flex items-center justify-center gap-2 rounded-full border border-line bg-[#f7f7f4] px-4 py-3 text-sm font-semibold text-[#26251e] transition active:scale-[0.98]"
                   >
                     Ask for a smaller step
                   </button>
@@ -312,11 +291,12 @@ onMounted(() => {
                 </div>
               </div>
             </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <section class="mx-auto max-w-7xl px-5 pb-20 lg:px-8">
+      <section class="mx-auto max-w-[1300px] px-5 pb-20 lg:px-8">
         <div class="reveal border-y border-line py-9">
           <p class="text-center font-mono text-xs uppercase tracking-[0.2em] text-muted">
             Trusted by students at
@@ -331,7 +311,7 @@ onMounted(() => {
               :pause-on-hover="true"
               :scale-on-hover="true"
               :fade-out="true"
-              fade-out-color="#F7F6F3"
+              fade-out-color="#F7F7F4"
               aria-label="Student school logos"
             />
           </div>
@@ -339,10 +319,9 @@ onMounted(() => {
       </section>
 
       <section id="how" class="border-y border-line bg-paper py-24">
-        <div class="mx-auto max-w-7xl px-5 lg:px-8">
+        <div class="mx-auto max-w-[1300px] px-5 lg:px-8">
           <div class="reveal max-w-3xl">
-            <p class="font-mono text-xs uppercase tracking-[0.18em] text-muted">The loop</p>
-            <h2 class="mt-4 font-serif text-5xl leading-[0.98] tracking-[-0.045em] md:text-7xl">
+            <h2 class="font-serif text-5xl leading-[0.98] tracking-[-0.045em] md:text-7xl">
               It does not ask you to become a task manager.
             </h2>
             <p class="mt-6 text-lg leading-8 text-muted">
@@ -351,11 +330,11 @@ onMounted(() => {
             </p>
           </div>
 
-          <div class="mt-14 grid gap-px overflow-hidden rounded-xl border border-line bg-line md:grid-cols-4">
+          <div class="mt-14 grid gap-px overflow-hidden rounded-[10px] border border-line bg-line md:grid-cols-4">
             <div
               v-for="(step, index) in steps"
               :key="step"
-              class="reveal bg-white p-6"
+              class="reveal bg-[#f0efeb] p-6 text-[#26251e]"
               :style="{ '--delay': `${index * 80}ms` }"
             >
               <p class="font-mono text-xs text-muted">0{{ index + 1 }}</p>
@@ -365,12 +344,12 @@ onMounted(() => {
         </div>
       </section>
 
-      <section id="inside" class="mx-auto max-w-7xl px-5 py-24 lg:px-8">
+      <section id="inside" class="mx-auto max-w-[1300px] px-5 py-24 lg:px-8">
         <div class="grid gap-6 lg:grid-cols-12">
           <article
             v-for="(feature, index) in features"
             :key="feature.title"
-            class="reveal rounded-xl border border-line bg-white p-7 lg:p-9"
+            class="reveal rounded-[10px] border border-line bg-[#f0efeb] p-7 text-[#26251e] lg:p-9"
             :class="[
               index === 0 ? 'lg:col-span-7' : '',
               index === 1 ? 'lg:col-span-5' : '',
@@ -380,13 +359,7 @@ onMounted(() => {
             :style="{ '--delay': `${index * 70}ms` }"
           >
             <p
-              class="inline-flex rounded-full px-3 py-1 font-mono text-xs uppercase tracking-[0.16em]"
-              :class="{
-                'bg-blue-soft text-blue-ink': feature.tone === 'blue',
-                'bg-green-soft text-green-ink': feature.tone === 'green',
-                'bg-red-soft text-red-ink': feature.tone === 'red',
-                'bg-gold-soft text-gold': feature.tone === 'gold'
-              }"
+              class="inline-flex rounded-full bg-[#26251e] px-3 py-1 font-mono text-xs uppercase tracking-[0.16em] text-[#e6e5e0]"
             >
               {{ feature.eyebrow }}
             </p>
@@ -399,13 +372,10 @@ onMounted(() => {
       </section>
 
       <section id="flow" class="border-y border-line bg-paper py-24">
-        <div class="mx-auto max-w-7xl px-5 lg:px-8">
+        <div class="mx-auto max-w-[1300px] px-5 lg:px-8">
           <div class="grid gap-12 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
             <div class="reveal">
-              <p class="font-mono text-xs uppercase tracking-[0.18em] text-muted">
-                How information flows
-              </p>
-              <h2 class="mt-4 font-serif text-5xl leading-[0.98] tracking-[-0.045em] md:text-7xl">
+              <h2 class="font-serif text-5xl leading-[0.98] tracking-[-0.045em] md:text-7xl">
                 Your obligations are already written down. Just badly.
               </h2>
               <p class="mt-6 text-lg leading-8 text-muted">
@@ -443,7 +413,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="mt-10 overflow-hidden rounded-xl border border-line bg-white">
+          <div class="mt-10 overflow-hidden rounded-[10px] border border-line bg-[#f0efeb] text-[#26251e]">
             <div class="grid border-b border-line bg-paper px-5 py-4 font-mono text-xs uppercase tracking-[0.16em] text-muted md:grid-cols-[0.8fr_1.4fr_1fr]">
               <span>Signal</span>
               <span class="hidden md:block">Example</span>
@@ -465,7 +435,7 @@ onMounted(() => {
             <article
               v-for="(rule, index) in accountabilityRules"
               :key="rule.title"
-              class="reveal rounded-xl border border-line bg-white p-6"
+              class="reveal rounded-[10px] border border-line bg-[#f0efeb] p-6 text-[#26251e]"
               :style="{ '--delay': `${index * 80}ms` }"
             >
               <h3 class="text-lg font-semibold tracking-[-0.02em]">{{ rule.title }}</h3>
@@ -475,7 +445,7 @@ onMounted(() => {
         </div>
       </section>
 
-      <section class="mx-auto max-w-7xl px-5 py-24 lg:px-8">
+      <section class="mx-auto max-w-[1300px] px-5 py-24 lg:px-8">
         <div class="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
           <div class="reveal lg:sticky lg:top-24">
             <p class="font-mono text-xs uppercase tracking-[0.18em] text-muted">
@@ -491,7 +461,7 @@ onMounted(() => {
           </div>
 
           <div class="grid gap-4">
-            <div class="reveal rounded-xl border border-line bg-white p-6 lg:p-8">
+            <div class="reveal rounded-[10px] border border-line bg-[#f0efeb] p-6 text-[#26251e] lg:p-8">
               <div class="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                 <div>
                   <p class="font-mono text-xs uppercase tracking-[0.18em] text-blue-ink">
@@ -501,18 +471,18 @@ onMounted(() => {
                     Review what the agent found before it becomes a rule.
                   </h3>
                 </div>
-                <div class="rounded-lg border border-line bg-blue-soft px-3 py-2 font-mono text-xs text-blue-ink">
+                <div class="rounded-full border border-line bg-[#26251e] px-3 py-2 font-mono text-xs text-[#e6e5e0]">
                   12 found
                 </div>
               </div>
               <div class="mt-7 grid gap-3">
-                <div class="rounded-lg border border-line bg-paper p-4">
+                <div class="rounded-lg border border-line bg-[#f7f7f4] p-4">
                   <p class="text-sm font-semibold">Investor update</p>
                   <p class="mt-1 text-sm leading-6 text-muted">
                     Due tomorrow. Missing churn notes and expansion number.
                   </p>
                 </div>
-                <div class="rounded-lg border border-line bg-paper p-4">
+                <div class="rounded-lg border border-line bg-[#f7f7f4] p-4">
                   <p class="text-sm font-semibold">Design feedback for landing</p>
                   <p class="mt-1 text-sm leading-6 text-muted">
                     You promised to send comments after the morning call.
@@ -522,7 +492,7 @@ onMounted(() => {
             </div>
 
             <div class="grid gap-4 md:grid-cols-2">
-              <div class="reveal rounded-xl border border-line bg-white p-6" style="--delay: 80ms">
+              <div class="reveal rounded-[10px] border border-line bg-[#f0efeb] p-6 text-[#26251e]" style="--delay: 80ms">
                 <p class="font-mono text-xs uppercase tracking-[0.18em] text-red-ink">
                   Extension
                 </p>
@@ -533,7 +503,7 @@ onMounted(() => {
                 </p>
               </div>
 
-              <div class="reveal rounded-xl border border-line bg-white p-6" style="--delay: 160ms">
+              <div class="reveal rounded-[10px] border border-line bg-[#f0efeb] p-6 text-[#26251e]" style="--delay: 160ms">
                 <p class="font-mono text-xs uppercase tracking-[0.18em] text-green-ink">
                   Coach
                 </p>
@@ -544,7 +514,7 @@ onMounted(() => {
                 </p>
               </div>
 
-              <div class="reveal rounded-xl border border-line bg-white p-6 md:col-span-2" style="--delay: 240ms">
+              <div class="reveal rounded-[10px] border border-line bg-[#f0efeb] p-6 text-[#26251e] md:col-span-2" style="--delay: 240ms">
                 <p class="font-mono text-xs uppercase tracking-[0.18em] text-gold">
                   Break timer
                 </p>
@@ -564,10 +534,10 @@ onMounted(() => {
         </div>
       </section>
 
-      <section id="privacy" class="mx-auto max-w-7xl px-5 py-24 lg:px-8">
+      <section id="privacy" class="mx-auto max-w-[1300px] px-5 py-24 lg:px-8">
         <div class="grid gap-8 lg:grid-cols-[1fr_1fr]">
-          <div class="reveal rounded-xl border border-line bg-white p-8 lg:p-10">
-            <div class="mb-8 inline-flex rounded-md bg-green-soft p-3 text-green-ink">
+          <div class="reveal rounded-[10px] border border-line bg-[#f0efeb] p-8 text-[#26251e] lg:p-10">
+            <div class="mb-8 inline-flex rounded-md bg-[#26251e] p-3 text-[#e6e5e0]">
               <PhShieldCheck :size="28" weight="bold" />
             </div>
             <h2 class="font-serif text-5xl leading-[0.98] tracking-[-0.045em]">
@@ -585,13 +555,13 @@ onMounted(() => {
               stays direct, but the context stays visible.
             </p>
             <div class="grid gap-3 pt-2 sm:grid-cols-3">
-              <div class="rounded-lg border border-line bg-white p-4 text-sm text-ink">
+              <div class="rounded-lg border border-line bg-[#f0efeb] p-4 text-sm text-[#26251e]">
                 Source controls
               </div>
-              <div class="rounded-lg border border-line bg-white p-4 text-sm text-ink">
+              <div class="rounded-lg border border-line bg-[#f0efeb] p-4 text-sm text-[#26251e]">
                 Review queue
               </div>
-              <div class="rounded-lg border border-line bg-white p-4 text-sm text-ink">
+              <div class="rounded-lg border border-line bg-[#f0efeb] p-4 text-sm text-[#26251e]">
                 Delete anytime
               </div>
             </div>
@@ -600,7 +570,7 @@ onMounted(() => {
       </section>
 
       <section id="pricing" class="border-y border-line bg-paper py-24">
-        <div class="mx-auto max-w-7xl px-5 lg:px-8">
+        <div class="mx-auto max-w-[1300px] px-5 lg:px-8">
           <div class="reveal max-w-3xl">
             <p class="font-mono text-xs uppercase tracking-[0.18em] text-muted">Pricing</p>
             <h2 class="mt-4 font-serif text-5xl leading-[0.98] tracking-[-0.045em] md:text-7xl">
@@ -609,7 +579,7 @@ onMounted(() => {
           </div>
 
           <div class="mt-12 grid gap-4 lg:grid-cols-3">
-            <article class="reveal rounded-xl border border-line bg-white p-6 lg:p-8">
+            <article class="reveal rounded-[10px] border border-line bg-[#f0efeb] p-6 text-[#26251e] lg:p-8">
               <p class="font-mono text-xs uppercase tracking-[0.18em] text-green-ink">Beta</p>
               <h3 class="mt-5 text-2xl font-semibold tracking-[-0.03em]">Free extension</h3>
               <p class="mt-3 text-sm leading-6 text-muted">
@@ -618,7 +588,7 @@ onMounted(() => {
               <p class="mt-8 font-mono text-4xl tracking-[-0.06em]">$0</p>
             </article>
 
-            <article class="reveal rounded-xl border border-line bg-white p-6 lg:p-8" style="--delay: 80ms">
+            <article class="reveal rounded-[10px] border border-line bg-[#f0efeb] p-6 text-[#26251e] lg:p-8" style="--delay: 80ms">
               <p class="font-mono text-xs uppercase tracking-[0.18em] text-blue-ink">Personal</p>
               <h3 class="mt-5 text-2xl font-semibold tracking-[-0.03em]">Goalden Coach</h3>
               <p class="mt-3 text-sm leading-6 text-muted">
@@ -627,7 +597,7 @@ onMounted(() => {
               <p class="mt-8 font-mono text-4xl tracking-[-0.06em]">Soon</p>
             </article>
 
-            <article class="reveal rounded-xl border border-line bg-white p-6 lg:p-8" style="--delay: 160ms">
+            <article class="reveal rounded-[10px] border border-line bg-[#f0efeb] p-6 text-[#26251e] lg:p-8" style="--delay: 160ms">
               <p class="font-mono text-xs uppercase tracking-[0.18em] text-gold">Students</p>
               <h3 class="mt-5 text-2xl font-semibold tracking-[-0.03em]">Study groups</h3>
               <p class="mt-3 text-sm leading-6 text-muted">
@@ -639,10 +609,10 @@ onMounted(() => {
         </div>
       </section>
 
-      <section id="waitlist" class="border-y border-line bg-ink py-24 text-white">
-        <div class="mx-auto grid max-w-7xl gap-10 px-5 lg:grid-cols-[1fr_0.88fr] lg:px-8">
+      <section id="waitlist" class="border-y border-line bg-[#f7f7f4] py-24 text-ink">
+        <div class="mx-auto grid max-w-[1300px] gap-10 px-5 lg:grid-cols-[1fr_0.88fr] lg:px-8">
           <div class="reveal">
-            <p class="font-mono text-xs uppercase tracking-[0.18em] text-white/55">
+            <p class="font-mono text-xs uppercase tracking-[0.18em] text-muted">
               Early access
             </p>
             <h2 class="mt-4 max-w-3xl font-serif text-5xl leading-[0.98] tracking-[-0.045em] md:text-7xl">
@@ -652,7 +622,7 @@ onMounted(() => {
           <form
             action="https://formsubmit.co/wifiskeleton300@gmail.com"
             method="POST"
-            class="reveal rounded-xl border border-white/15 bg-white/[0.03] p-5 lg:p-7"
+            class="reveal rounded-[10px] border border-line bg-[#f0efeb] p-5 text-[#26251e] lg:p-7"
             style="--delay: 100ms"
           >
             <input type="hidden" name="_subject" value="New Goalden waitlist signup" />
@@ -668,16 +638,16 @@ onMounted(() => {
                 required
                 autocomplete="email"
                 placeholder="you@company.com"
-                class="min-h-12 flex-1 rounded-md border border-white/15 bg-white px-4 text-ink outline-none transition placeholder:text-muted focus:border-white"
+                class="min-h-12 flex-1 rounded-full border border-line bg-[#f7f7f4] px-4 text-ink outline-none transition placeholder:text-muted focus:border-ink"
               />
               <button
                 type="submit"
-                class="rounded-md bg-white px-5 py-3 text-sm font-semibold text-ink transition hover:bg-bone active:scale-[0.98]"
+                class="rounded-full bg-[#26251e] px-5 py-3 text-sm font-semibold text-[#e6e5e0] transition hover:bg-[#34332b] active:scale-[0.98]"
               >
                 Join waitlist
               </button>
             </div>
-            <p class="mt-4 text-sm leading-6 text-white/55">
+            <p class="mt-4 text-sm leading-6 text-muted">
               Early access starts with the integrations people ask for most: Slack, Telegram,
               WhatsApp, Notion, and the browser extension.
             </p>
@@ -698,7 +668,7 @@ onMounted(() => {
             v-for="(item, index) in faq"
             :key="item.question"
             class="group border-b border-line transition-colors duration-300"
-            :class="activeFaq === index ? 'bg-white/55' : 'hover:bg-white/35'"
+            :class="activeFaq === index ? 'bg-[#f0efeb]' : 'hover:bg-[#f0efeb]/70'"
           >
             <button
               type="button"
@@ -713,7 +683,7 @@ onMounted(() => {
                 {{ item.question }}
               </span>
               <span
-                class="grid size-8 shrink-0 place-items-center rounded-md border border-line bg-white font-mono text-xl leading-none text-muted transition duration-300"
+                class="grid size-8 shrink-0 place-items-center rounded-md border border-line bg-[#f0efeb] font-mono text-xl leading-none text-muted transition duration-300"
                 :class="activeFaq === index ? 'rotate-45 text-ink shadow-flat' : 'group-hover:text-ink'"
               >
                 +
@@ -736,7 +706,7 @@ onMounted(() => {
     </main>
 
     <footer class="border-t border-line bg-paper">
-      <div class="mx-auto grid max-w-7xl gap-10 px-5 py-12 lg:grid-cols-[1.2fr_2fr] lg:px-8">
+      <div class="mx-auto grid max-w-[1300px] gap-10 px-5 py-12 lg:grid-cols-[1.2fr_2fr] lg:px-8">
         <div>
           <div class="flex items-center gap-3">
             <img src="/goalden-symbol-black.png" alt="" class="h-8 w-8 object-contain" />

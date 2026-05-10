@@ -10,27 +10,27 @@ export default <Partial<Config>>{
   theme: {
     extend: {
       colors: {
-        bone: '#F7F6F3',
-        paper: '#FBFBFA',
-        ink: '#111111',
-        muted: '#787774',
-        line: '#EAEAEA',
-        gold: '#956400',
-        'gold-soft': '#FBF3DB',
-        'green-soft': '#EDF3EC',
-        'green-ink': '#346538',
-        'blue-soft': '#E1F3FE',
-        'blue-ink': '#1F6C9F',
-        'red-soft': '#FDEBEC',
-        'red-ink': '#9F2F2D'
+        bone: '#F7F7F4',
+        paper: '#F7F7F4',
+        ink: '#26251E',
+        muted: '#6F6C63',
+        line: '#DEDED8',
+        gold: '#26251E',
+        'gold-soft': '#F0EFEB',
+        'green-soft': '#F0EFEB',
+        'green-ink': '#26251E',
+        'blue-soft': '#F0EFEB',
+        'blue-ink': '#26251E',
+        'red-soft': '#F0EFEB',
+        'red-ink': '#26251E'
       },
       fontFamily: {
-        sans: ['SF Pro Display', 'Geist Sans', 'Helvetica Neue', 'Arial', 'sans-serif'],
-        serif: ['Newsreader', 'Instrument Serif', 'Georgia', 'serif'],
-        mono: ['Geist Mono', 'SF Mono', 'JetBrains Mono', 'monospace']
+        sans: ['Product Sans', 'SF Pro Display', 'Geist Sans', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        serif: ['Product Sans', 'SF Pro Display', 'Geist Sans', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        mono: ['Product Sans', 'Geist Mono', 'SF Mono', 'JetBrains Mono', 'monospace']
       },
       boxShadow: {
-        flat: '0 2px 8px rgba(0, 0, 0, 0.04)'
+        flat: '0 18px 50px rgba(33, 31, 24, 0.08)'
       }
     }
   }
