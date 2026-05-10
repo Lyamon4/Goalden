@@ -153,7 +153,7 @@ onMounted(() => {
 <template>
   <div class="min-h-screen overflow-hidden bg-bone font-sans text-ink">
     <header
-      class="fixed left-0 right-0 top-0 z-30 border-b border-[#deded8] bg-[#f7f7f4]"
+      class="fixed left-0 right-0 top-0 z-30 bg-[#f7f7f4]"
     >
       <nav class="mx-auto flex h-16 max-w-[1300px] items-center justify-between px-5 lg:px-8">
         <a href="#top" class="flex items-center gap-2.5" aria-label="Goalden home">
@@ -182,10 +182,7 @@ onMounted(() => {
     <main id="top">
       <section class="relative mx-auto min-h-[100dvh] max-w-[1300px] px-5 pb-24 pt-32 lg:px-8">
         <div class="reveal min-w-0 max-w-[620px]">
-          <h1 class="max-w-full text-[2rem] font-normal leading-[1.12] tracking-[-0.045em] sm:text-[2.25rem]">
-            Earn your scroll.
-          </h1>
-          <p class="mt-1 max-w-2xl text-[1.55rem] leading-[1.18] tracking-[-0.045em] text-[#26251e] sm:text-[2rem]">
+          <p class="max-w-2xl text-[1.55rem] leading-[1.18] tracking-[-0.045em] text-[#26251e] sm:text-[2rem]">
             Goalden turns messy chats into tasks before it lets the feed open.
           </p>
 
