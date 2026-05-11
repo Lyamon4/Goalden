@@ -14,7 +14,17 @@
     "type": "module"
   },
   "options_page": "options.html",
-  "permissions": ["alarms", "declarativeNetRequest", "scripting", "sidePanel", "storage", "tabs"],
+  "permissions": [
+    "activeTab",
+    "alarms",
+    "contextMenus",
+    "declarativeNetRequest",
+    "identity",
+    "scripting",
+    "sidePanel",
+    "storage",
+    "tabs"
+  ],
   "host_permissions": [
     "https://rlhaibdgdgczlgpgdnag.supabase.co/*",
     "https://api.groq.com/*",

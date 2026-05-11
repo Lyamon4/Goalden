@@ -1,13 +1,20 @@
 import { getState, mergeGoaldenStates, normalizeGoaldenState, saveState } from './state';
 import type {
   GoaldenAuthView,
+  GoaldenIntegration,
+  GoaldenIntegrationHealth,
   GoaldenState,
   GoaldenTask,
+  GoaldenTaskCandidate,
   GoaldenUser,
   GoaldenViewState,
   AiSettings,
+  ConnectableIntegrationProvider,
+  IntegrationProvider,
+  IntegrationStatus,
   ProgressLog,
   SiteId,
+  TaskDraft,
   TaskStatus
 } from './types';
 
@@ -59,6 +66,10 @@ interface GoaldenTaskRow {
   status: TaskStatus;
   created_at_bigint: number;
   updated_at_bigint: number;
+  source_provider?: IntegrationProvider | null;
+  source_external_id?: string | null;
+  evidence_snippet?: string | null;
+  confidence?: number | null;
 }
 
 interface GoaldenProgressRow {
@@ -71,6 +82,70 @@ interface GoaldenProgressRow {
   created_at_bigint: number;
   unlock_until_bigint: number;
 }
+
+interface GoaldenIntegrationRow {
+  id: string;
+  user_id: string;
+  provider: IntegrationProvider;
+  status: IntegrationStatus;
+  display_name: string | null;
+  external_account_id: string | null;
+  last_synced_at_bigint: number | null;
+  metadata: Record<string, unknown> | null;
+}
+
+interface GoaldenTaskCandidateRow {
+  id: string;
+  user_id: string;
+  integration_id: string | null;
+  provider: IntegrationProvider;
+  source_external_id: string | null;
+  title: string;
+  deadline: string;
+  next_step: string;
+  confidence: number;
+  evidence_snippet: string;
+  status: 'new' | 'accepted' | 'dismissed';
+  created_at_bigint: number;
+  updated_at_bigint: number;
+}
+
+interface IntegrationConnectResult {
+  provider: IntegrationProvider;
+  connectUrl?: string;
+  integration?: GoaldenIntegrationRow;
+}
+
+interface IntegrationSyncResult {
+  provider: IntegrationProvider;
+  inserted?: number;
+  integration?: GoaldenIntegrationRow;
+}
+
+interface CaptureTaskResult {
+  provider: 'browser';
+  inserted: number;
+  sourceLabel: string;
+}
+
+const UNKNOWN_INTEGRATION_HEALTH: GoaldenIntegrationHealth = {
+  telegram: {
+    configured: false,
+    missing: [],
+    message: 'Setup check unavailable.'
+  },
+  slack: {
+    configured: false,
+    missing: [],
+    message: 'Setup check unavailable.'
+  },
+  groq: {
+    configured: false,
+    missing: [],
+    message: 'Setup check unavailable.'
+  },
+  checkedAt: 0
+};
 
 type SettingsBody = {
   user_id: string;
@@ -178,6 +253,24 @@ async function supabaseRestRequest<T>(path: string, init: RequestInit = {}, acce
   return parseSupabaseResponse<T>(response);
 }
 
+async function supabaseFunctionRequest<T>(
+  functionName: string,
+  init: RequestInit = {},
+  accessToken: string
+): Promise<T> {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/${functionName}`, {
+    ...init,
+    headers: {
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      ...(init.headers ?? {})
+    }
+  });
+
+  return parseSupabaseResponse<T>(response);
+}
+
 async function parseSupabaseResponse<T>(response: Response): Promise<T> {
   const text = await response.text();
   const payload = text ? JSON.parse(text) : null;
@@ -228,7 +321,11 @@ function taskToRow(task: GoaldenTask, userId: string): GoaldenTaskRow {
     next_step: task.nextStep,
     status: task.status,
     created_at_bigint: task.createdAt,
-    updated_at_bigint: task.updatedAt
+    updated_at_bigint: task.updatedAt,
+    source_provider: task.sourceProvider ?? null,
+    source_external_id: task.sourceExternalId ?? null,
+    evidence_snippet: task.evidenceSnippet ?? null,
+    confidence: task.confidence ?? null
   };
 }
 
@@ -241,8 +338,60 @@ function rowToTask(row: GoaldenTaskRow): GoaldenTask {
     nextStep: row.next_step,
     status: row.status,
     createdAt: row.created_at_bigint,
+    updatedAt: row.updated_at_bigint,
+    sourceProvider: row.source_provider ?? undefined,
+    sourceExternalId: row.source_external_id ?? undefined,
+    evidenceSnippet: row.evidence_snippet ?? undefined,
+    confidence: typeof row.confidence === 'number' ? row.confidence : undefined
+  };
+}
+
+function rowToIntegration(row: GoaldenIntegrationRow): GoaldenIntegration {
+  return {
+    id: row.id,
+    provider: row.provider,
+    status: row.status,
+    displayName: row.display_name ?? providerLabel(row.provider),
+    externalAccountId: row.external_account_id ?? undefined,
+    lastSyncedAt: row.last_synced_at_bigint ?? undefined,
+    metadata: row.metadata ?? {}
+  };
+}
+
+function rowToTaskCandidate(row: GoaldenTaskCandidateRow): GoaldenTaskCandidate {
+  return {
+    id: row.id,
+    provider: row.provider,
+    integrationId: row.integration_id ?? undefined,
+    sourceExternalId: row.source_external_id ?? undefined,
+    title: row.title,
+    deadline: row.deadline,
+    nextStep: row.next_step,
+    confidence: row.confidence,
+    evidenceSnippet: row.evidence_snippet,
+    status: row.status,
+    createdAt: row.created_at_bigint,
     updatedAt: row.updated_at_bigint
   };
+}
+
+function candidateToTaskDraft(candidate: GoaldenTaskCandidate): TaskDraft {
+  return {
+    title: candidate.title,
+    source: providerLabel(candidate.provider),
+    deadline: candidate.deadline,
+    nextStep: candidate.nextStep,
+    sourceProvider: candidate.provider,
+    sourceExternalId: candidate.sourceExternalId,
+    evidenceSnippet: candidate.evidenceSnippet,
+    confidence: candidate.confidence
+  };
+}
+
+function providerLabel(provider: IntegrationProvider) {
+  if (provider === 'telegram') return 'Telegram';
+  if (provider === 'slack') return 'Slack';
+  return 'Browser capture';
 }
 
 function progressId(item: ProgressLog) {
@@ -454,7 +603,38 @@ export async function getAuthView(): Promise<GoaldenAuthView> {
 export async function getViewState(state?: GoaldenState): Promise<GoaldenViewState> {
   return {
     ...(state ?? (await getState())),
-    auth: await getAuthView()
+    auth: await getAuthView(),
+    integrations: [],
+    taskCandidates: [],
+    integrationHealth: undefined
+  };
+}
+
+export async function getIntegrationViewState(state?: GoaldenState): Promise<GoaldenViewState> {
+  const currentState = state ?? (await getState());
+  const auth = await requireSession();
+  if (!auth?.accessToken) {
+    return {
+      ...currentState,
+      auth: authView(auth),
+      integrations: [],
+      taskCandidates: [],
+      integrationHealth: undefined
+    };
+  }
+
+  const [integrations, taskCandidates, integrationHealth] = await Promise.all([
+    loadIntegrations(auth),
+    loadTaskCandidates(auth),
+    loadIntegrationHealth(auth)
+  ]);
+
+  return {
+    ...currentState,
+    auth: authView(auth),
+    integrations,
+    taskCandidates,
+    integrationHealth
   };
 }
 
@@ -526,4 +706,179 @@ export async function syncStateToSupabase(state?: GoaldenState): Promise<Goalden
     });
     return getViewState(currentState);
   }
+}
+
+async function loadIntegrations(auth: StoredAuth): Promise<GoaldenIntegration[]> {
+  if (!auth.accessToken) return [];
+  const rows = await supabaseRestRequest<GoaldenIntegrationRow[]>(
+    'goalden_integrations?select=*&order=provider.asc',
+    { method: 'GET' },
+    auth.accessToken
+  );
+  return rows.map(rowToIntegration);
+}
+
+async function loadTaskCandidates(auth: StoredAuth): Promise<GoaldenTaskCandidate[]> {
+  if (!auth.accessToken) return [];
+  const rows = await supabaseRestRequest<GoaldenTaskCandidateRow[]>(
+    'goalden_task_candidates?select=*&status=eq.new&order=updated_at_bigint.desc&limit=20',
+    { method: 'GET' },
+    auth.accessToken
+  );
+  return rows.map(rowToTaskCandidate);
+}
+
+async function loadIntegrationHealth(auth: StoredAuth): Promise<GoaldenIntegrationHealth> {
+  if (!auth.accessToken) return UNKNOWN_INTEGRATION_HEALTH;
+
+  try {
+    return await supabaseFunctionRequest<GoaldenIntegrationHealth>(
+      'integration-health',
+      { method: 'POST', body: JSON.stringify({}) },
+      auth.accessToken
+    );
+  } catch {
+    return UNKNOWN_INTEGRATION_HEALTH;
+  }
+}
+
+async function loadTaskCandidate(auth: StoredAuth, candidateId: string): Promise<GoaldenTaskCandidate> {
+  if (!auth.accessToken) throw new Error('You are not signed in.');
+  const rows = await supabaseRestRequest<GoaldenTaskCandidateRow[]>(
+    `goalden_task_candidates?select=*&id=eq.${encodeURIComponent(candidateId)}&limit=1`,
+    { method: 'GET' },
+    auth.accessToken
+  );
+  const row = rows[0];
+  if (!row) throw new Error('Task candidate was not found.');
+  return rowToTaskCandidate(row);
+}
+
+async function updateCandidateStatus(
+  auth: StoredAuth,
+  candidateId: string,
+  status: GoaldenTaskCandidate['status']
+): Promise<void> {
+  if (!auth.accessToken) throw new Error('You are not signed in.');
+  await supabaseRestRequest(
+    `goalden_task_candidates?id=eq.${encodeURIComponent(candidateId)}`,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        status,
+        updated_at_bigint: Date.now()
+      })
+    },
+    auth.accessToken
+  );
+}
+
+export async function startIntegrationConnect(provider: ConnectableIntegrationProvider, redirectUrl?: string) {
+  const auth = await requireSession();
+  if (!auth?.accessToken) throw new Error('You are not signed in.');
+
+  if (provider === 'telegram') {
+    return supabaseFunctionRequest<IntegrationConnectResult>(
+      'telegram-start',
+      { method: 'POST', body: JSON.stringify({}) },
+      auth.accessToken
+    );
+  }
+
+  if (!redirectUrl) throw new Error('Missing Slack redirect URL.');
+  return supabaseFunctionRequest<IntegrationConnectResult>(
+    'slack-oauth',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'start',
+        redirectUrl
+      })
+    },
+    auth.accessToken
+  );
+}
+
+export async function completeSlackIntegration(callbackUrl: string, redirectUrl: string) {
+  const auth = await requireSession();
+  if (!auth?.accessToken) throw new Error('You are not signed in.');
+
+  const url = new URL(callbackUrl);
+  const error = url.searchParams.get('error');
+  if (error) throw new Error(`Slack denied access: ${error}`);
+
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+  if (!code || !state) throw new Error('Slack did not return an OAuth code.');
+
+  return supabaseFunctionRequest<IntegrationConnectResult>(
+    'slack-oauth',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'exchange',
+        code,
+        state,
+        redirectUrl
+      })
+    },
+    auth.accessToken
+  );
+}
+
+export async function syncIntegrationProvider(provider: ConnectableIntegrationProvider) {
+  const auth = await requireSession();
+  if (!auth?.accessToken) throw new Error('You are not signed in.');
+
+  return supabaseFunctionRequest<IntegrationSyncResult>(
+    'integration-sync',
+    {
+      method: 'POST',
+      body: JSON.stringify({ provider })
+    },
+    auth.accessToken
+  );
+}
+
+export async function captureBrowserText(input: {
+  text: string;
+  sourceUrl?: string;
+  sourceTitle?: string;
+  mode?: 'selection' | 'page';
+}) {
+  const auth = await requireSession();
+  if (!auth?.accessToken) throw new Error('You are not signed in.');
+
+  return supabaseFunctionRequest<CaptureTaskResult>(
+    'capture-task',
+    {
+      method: 'POST',
+      body: JSON.stringify(input)
+    },
+    auth.accessToken
+  );
+}
+
+export async function acceptTaskCandidate(candidateId: string): Promise<TaskDraft> {
+  const auth = await requireSession();
+  if (!auth?.accessToken) throw new Error('You are not signed in.');
+
+  const candidate = await loadTaskCandidate(auth, candidateId);
+  return candidateToTaskDraft(candidate);
+}
+
+export async function markTaskCandidateAccepted(candidateId: string) {
+  const auth = await requireSession();
+  if (!auth?.accessToken) throw new Error('You are not signed in.');
+
+  await updateCandidateStatus(auth, candidateId, 'accepted');
+}
+
+export async function dismissTaskCandidate(candidateId: string) {
+  const auth = await requireSession();
+  if (!auth?.accessToken) throw new Error('You are not signed in.');
+
+  await updateCandidateStatus(auth, candidateId, 'dismissed');
+  return getIntegrationViewState();
 }

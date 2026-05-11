@@ -2,12 +2,19 @@ export type SiteId = 'reddit' | 'youtube' | 'tiktok' | 'instagram';
 export type TaskStatus = 'open' | 'done' | 'paused';
 export type AuthStatus = 'signed-out' | 'signed-in' | 'pending-confirmation';
 export type AiDecisionSource = 'ai' | 'fallback';
+export type IntegrationProvider = 'telegram' | 'slack' | 'browser';
+export type ConnectableIntegrationProvider = Exclude<IntegrationProvider, 'browser'>;
+export type IntegrationStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 export interface TaskDraft {
   title: string;
   source: string;
   deadline: string;
   nextStep: string;
+  sourceProvider?: IntegrationProvider;
+  sourceExternalId?: string;
+  evidenceSnippet?: string;
+  confidence?: number;
 }
 
 export type ExtensionMessage =
@@ -28,6 +35,14 @@ export type ExtensionMessage =
   | { type: 'auth-sign-in'; email: string; password: string }
   | { type: 'auth-sign-out' }
   | { type: 'sync-remote' }
+  | { type: 'get-integrations' }
+  | { type: 'get-task-candidates' }
+  | { type: 'start-integration-connect'; provider: ConnectableIntegrationProvider }
+  | { type: 'sync-integration'; provider: ConnectableIntegrationProvider }
+  | { type: 'capture-browser-text'; text: string; sourceUrl?: string; sourceTitle?: string; mode?: 'selection' | 'page' }
+  | { type: 'scan-current-page' }
+  | { type: 'accept-task-candidate'; candidateId: string; activate?: boolean }
+  | { type: 'dismiss-task-candidate'; candidateId: string }
   | { type: 'open-side-panel' }
   | { type: 'sync-rules' };
 
@@ -57,6 +72,48 @@ export interface GoaldenTask {
   status: TaskStatus;
   createdAt: number;
   updatedAt: number;
+  sourceProvider?: IntegrationProvider;
+  sourceExternalId?: string;
+  evidenceSnippet?: string;
+  confidence?: number;
+}
+
+export interface GoaldenIntegration {
+  id: string;
+  provider: IntegrationProvider;
+  status: IntegrationStatus;
+  displayName: string;
+  externalAccountId?: string;
+  lastSyncedAt?: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface GoaldenTaskCandidate {
+  id: string;
+  provider: IntegrationProvider;
+  integrationId?: string;
+  sourceExternalId?: string;
+  title: string;
+  deadline: string;
+  nextStep: string;
+  confidence: number;
+  evidenceSnippet: string;
+  status: 'new' | 'accepted' | 'dismissed';
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface IntegrationSetupStatus {
+  configured: boolean;
+  missing: string[];
+  message: string;
+}
+
+export interface GoaldenIntegrationHealth {
+  telegram: IntegrationSetupStatus;
+  slack: IntegrationSetupStatus;
+  groq: IntegrationSetupStatus;
+  checkedAt: number;
 }
 
 export interface AiSettings {
@@ -106,4 +163,7 @@ export interface GoaldenAuthView {
 
 export type GoaldenViewState = GoaldenState & {
   auth: GoaldenAuthView;
+  integrations: GoaldenIntegration[];
+  taskCandidates: GoaldenTaskCandidate[];
+  integrationHealth?: GoaldenIntegrationHealth;
 };

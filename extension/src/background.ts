@@ -18,15 +18,41 @@ import {
   saveGroqApiKey
 } from './shared/aiCoach';
 import { findSiteByUrl, getAllRuleIds, SITES } from './shared/sites';
-import { getAuthView, getViewState, signInWithEmail, signOut, signUpWithEmail, syncStateToSupabase } from './shared/supabaseAuth';
+import {
+  acceptTaskCandidate,
+  captureBrowserText,
+  completeSlackIntegration,
+  dismissTaskCandidate,
+  getAuthView,
+  getIntegrationViewState,
+  getViewState,
+  markTaskCandidateAccepted,
+  signInWithEmail,
+  signOut,
+  signUpWithEmail,
+  startIntegrationConnect,
+  syncIntegrationProvider,
+  syncStateToSupabase
+} from './shared/supabaseAuth';
 import type { ExtensionMessage, GoaldenState } from './shared/types';
 
 const UNLOCK_ALARM = 'goalden-unlock-expired';
+const CAPTURE_SELECTION_MENU_ID = 'goalden-capture-selection';
 
 function configureSidePanel() {
   chrome.sidePanel
     .setPanelBehavior({ openPanelOnActionClick: true })
     .catch(() => undefined);
+}
+
+function configureContextMenus() {
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: CAPTURE_SELECTION_MENU_ID,
+      title: 'Send selected text to Goalden',
+      contexts: ['selection']
+    });
+  });
 }
 
 async function syncRules() {
@@ -152,11 +178,88 @@ async function handleMessage(message: ExtensionMessage) {
     return syncStateToSupabase(state);
   }
 
+  if (message.type === 'get-integrations' || message.type === 'get-task-candidates') {
+    await requireSignedIn();
+    return getIntegrationViewState();
+  }
+
+  if (message.type === 'start-integration-connect') {
+    await requireSignedIn();
+
+    if (message.provider === 'telegram') {
+      const result = await startIntegrationConnect('telegram');
+      if (result.connectUrl) {
+        await chrome.tabs.create({ url: result.connectUrl }).catch(() => undefined);
+      }
+      return getIntegrationViewState();
+    }
+
+    const redirectUrl = chrome.identity.getRedirectURL('slack');
+    const result = await startIntegrationConnect('slack', redirectUrl);
+    if (!result.connectUrl) throw new Error('Slack did not return an OAuth URL.');
+
+    const callbackUrl = await chrome.identity.launchWebAuthFlow({
+      url: result.connectUrl,
+      interactive: true
+    });
+    if (!callbackUrl) throw new Error('Slack OAuth did not finish.');
+
+    await completeSlackIntegration(callbackUrl, redirectUrl);
+    return getIntegrationViewState();
+  }
+
+  if (message.type === 'sync-integration') {
+    await requireSignedIn();
+    await syncIntegrationProvider(message.provider);
+    return getIntegrationViewState();
+  }
+
+  if (message.type === 'capture-browser-text') {
+    await requireSignedIn();
+    await captureBrowserText({
+      text: message.text,
+      sourceUrl: message.sourceUrl,
+      sourceTitle: message.sourceTitle,
+      mode: message.mode ?? 'selection'
+    });
+    return getIntegrationViewState();
+  }
+
+  if (message.type === 'scan-current-page') {
+    await requireSignedIn();
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!activeTab?.id) throw new Error('Open a normal page before scanning.');
+    const text = await getVisiblePageText(activeTab.id);
+    await captureBrowserText({
+      text,
+      sourceUrl: activeTab.url,
+      sourceTitle: activeTab.title,
+      mode: 'page'
+    });
+    return getIntegrationViewState();
+  }
+
   if (message.type === 'create-task') {
     await requireSignedIn();
     const state = await updateState(current => addTask(current, message.task, message.activate ?? true));
     await syncRules();
     return syncStateToSupabase(state);
+  }
+
+  if (message.type === 'accept-task-candidate') {
+    await requireSignedIn();
+    const task = await acceptTaskCandidate(message.candidateId);
+    const state = await updateState(current => addTask(current, task, message.activate ?? true));
+    await syncRules();
+    await syncStateToSupabase(state);
+    await markTaskCandidateAccepted(message.candidateId);
+    return getIntegrationViewState(state);
+  }
+
+  if (message.type === 'dismiss-task-candidate') {
+    await requireSignedIn();
+    await dismissTaskCandidate(message.candidateId);
+    return getIntegrationViewState();
   }
 
   if (message.type === 'update-task') {
@@ -223,6 +326,50 @@ async function handleMessage(message: ExtensionMessage) {
   return getViewState();
 }
 
+async function getVisiblePageText(tabId: number) {
+  const [result] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => {
+      const text = document.body?.innerText ?? document.documentElement?.innerText ?? '';
+      return text.replace(/\s+/g, ' ').trim().slice(0, 12000);
+    }
+  });
+
+  const text = typeof result?.result === 'string' ? result.result : '';
+  if (text.length < 8) throw new Error('Goalden could not read enough text from this page.');
+  return text;
+}
+
+async function captureSelectionFromContextMenu(info: chrome.contextMenus.OnClickData, tab?: chrome.tabs.Tab) {
+  if (info.menuItemId !== CAPTURE_SELECTION_MENU_ID) return;
+  const text = info.selectionText?.trim();
+  if (!text) return;
+
+  if (tab?.windowId) {
+    chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => undefined);
+  }
+
+  try {
+    await requireSignedIn();
+    await captureBrowserText({
+      text,
+      sourceUrl: info.pageUrl ?? tab?.url,
+      sourceTitle: tab?.title,
+      mode: 'selection'
+    });
+    await chrome.storage.local.set({ 'goalden-last-capture': { ok: true, updatedAt: Date.now() } });
+  } catch (error) {
+    await chrome.storage.local.set({
+      'goalden-last-capture': {
+        ok: false,
+        updatedAt: Date.now(),
+        error: error instanceof Error ? error.message : 'Capture failed.'
+      }
+    });
+    // The side panel shows account/setup state after the user opens it.
+  }
+}
+
 async function requireSignedIn() {
   const auth = await getAuthView();
   if (auth.status !== 'signed-in') {
@@ -232,11 +379,13 @@ async function requireSignedIn() {
 
 chrome.runtime.onInstalled.addListener(() => {
   configureSidePanel();
+  configureContextMenus();
   syncRules();
 });
 
 chrome.runtime.onStartup.addListener(() => {
   configureSidePanel();
+  configureContextMenus();
   syncRules();
 });
 
@@ -252,6 +401,10 @@ chrome.alarms.onAlarm.addListener(alarm => {
   }
 });
 
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  captureSelectionFromContextMenu(info, tab).catch(() => undefined);
+});
+
 chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendResponse) => {
   handleMessage(message)
     .then(sendResponse)
@@ -262,4 +415,5 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendRe
 });
 
 configureSidePanel();
+configureContextMenus();
 syncRules();

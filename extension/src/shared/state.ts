@@ -1,5 +1,14 @@
 import { DEFAULT_ENABLED_SITE_IDS } from './sites';
-import type { AiSettings, GoaldenState, GoaldenTask, ProgressLog, SiteId, TaskDraft, TaskStatus } from './types';
+import type {
+  AiSettings,
+  GoaldenState,
+  GoaldenTask,
+  IntegrationProvider,
+  ProgressLog,
+  SiteId,
+  TaskDraft,
+  TaskStatus
+} from './types';
 
 const STORAGE_KEY = 'goalden-state';
 const MAX_LOG_ITEMS = 12;
@@ -79,6 +88,10 @@ function normalizeStatus(value: unknown): TaskStatus {
   return value === 'done' || value === 'paused' || value === 'open' ? value : 'open';
 }
 
+function normalizeProvider(value: unknown): IntegrationProvider | undefined {
+  return value === 'telegram' || value === 'slack' || value === 'browser' ? value : undefined;
+}
+
 function normalizeAiSettings(value: unknown): AiSettings {
   const settings = value && typeof value === 'object' ? (value as Partial<AiSettings>) : {};
   return {
@@ -117,7 +130,14 @@ function normalizeTask(value: unknown, index: number): GoaldenTask | null {
     nextStep: task.nextStep?.trim() || 'Finish one small piece',
     status: normalizeStatus(task.status),
     createdAt: Number.isFinite(task.createdAt) ? task.createdAt! : now,
-    updatedAt: Number.isFinite(task.updatedAt) ? task.updatedAt! : now
+    updatedAt: Number.isFinite(task.updatedAt) ? task.updatedAt! : now,
+    sourceProvider: normalizeProvider(task.sourceProvider),
+    sourceExternalId: task.sourceExternalId?.trim() || undefined,
+    evidenceSnippet: task.evidenceSnippet?.trim() || undefined,
+    confidence:
+      typeof task.confidence === 'number' && Number.isFinite(task.confidence)
+        ? Math.max(0, Math.min(1, task.confidence))
+        : undefined
   };
 }
 
@@ -193,7 +213,14 @@ export function createTaskFromDraft(task: TaskDraft, now = Date.now()): GoaldenT
     nextStep: task.nextStep.trim() || 'Finish one small piece',
     status: 'open',
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
+    sourceProvider: task.sourceProvider,
+    sourceExternalId: task.sourceExternalId?.trim() || undefined,
+    evidenceSnippet: task.evidenceSnippet?.trim() || undefined,
+    confidence:
+      typeof task.confidence === 'number' && Number.isFinite(task.confidence)
+        ? Math.max(0, Math.min(1, task.confidence))
+        : undefined
   };
 }
 
@@ -216,6 +243,13 @@ export function updateTask(state: GoaldenState, taskId: string, patch: Partial<T
       source: patch.source?.trim() || task.source,
       deadline: patch.deadline?.trim() || task.deadline,
       nextStep: patch.nextStep?.trim() || task.nextStep,
+      sourceProvider: normalizeProvider(patch.sourceProvider) ?? task.sourceProvider,
+      sourceExternalId: patch.sourceExternalId?.trim() || task.sourceExternalId,
+      evidenceSnippet: patch.evidenceSnippet?.trim() || task.evidenceSnippet,
+      confidence:
+        typeof patch.confidence === 'number' && Number.isFinite(patch.confidence)
+          ? Math.max(0, Math.min(1, patch.confidence))
+          : task.confidence,
       status: patch.status ? normalizeStatus(patch.status) : task.status,
       updatedAt: now
     };
